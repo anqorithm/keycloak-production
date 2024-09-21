@@ -10,34 +10,34 @@ services:
     container_name: nginx
     volumes:
       - ./nginx-ssl/templates:/etc/nginx/templates  # Nginx configuration templates
-      - ./certbot/conf:/etc/letsencrypt             # SSL certificates from Let's Encrypt
-      - ./certbot/www:/var/www/certbot              # Webroot for ACME challenges
+      - ./certbot/conf:/etc/letsencrypt             # Let's Encrypt certificates
     ports:
-      - 80:80    # HTTP port
-      - 443:443  # HTTPS port
+      - 80:80    # HTTP
+      - 443:443  # HTTPS
     restart: always
     networks:
       - local    # Connects to the local network
 
   # Certbot: SSL Certificate Management
   certbot:
-    image: certbot/certbot:${CERTBOT_VERSION:-latest}
+    image: certbot/dns-cloudflare:${CERTBOT_VERSION:-latest}
     environment:
       CERTBOT_LETSENCRYPT_EMAIL: ${CERTBOT_LETSENCRYPT_EMAIL}  # Email for Let's Encrypt notifications
       KEYCLOAK_DOMAIN: ${KEYCLOAK_DOMAIN}                      # Domain for the SSL certificate
-    mem_limit: 50m       # Maximum memory limit
+      CF_API_KEY: ${CLOUDFLARE_API_KEY}                        # Cloudflare API key for DNS-01 challenge
+      CF_API_EMAIL: ${CLOUDFLARE_API_EMAIL}                    # Cloudflare account email
+    mem_limit: 50m       # Maximum memory limit  
     mem_reservation: 30m # Minimum memory reservation
     container_name: certbot
     volumes:
-      - ./certbot/conf:/etc/letsencrypt  # SSL certificates storage
-      - ./certbot/www:/var/www/certbot   # Webroot for ACME challenges
-    command: certonly --non-interactive --webroot -w /var/www/certbot --email ${CERTBOT_LETSENCRYPT_EMAIL} -d ${KEYCLOAK_DOMAIN} --agree-tos
+      - ./certbot/conf:/etc/letsencrypt  # Let's Encrypt certificates
+    command: certonly --non-interactive --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini --email ${CERTBOT_LETSENCRYPT_EMAIL} -d ${KEYCLOAK_DOMAIN} --agree-tos
     depends_on:
       - nginx  # Ensures Nginx is running before Certbot starts
 
-# Network Configuration
+# Network Configuration 
 networks:
   local:
     ipam:
       config:
-        - subnet: ${SUBNET:-172.16.0.0/29}  # Subnet configuration for the local network
+        - subnet: ${SUBNET:-172.16.0.0/29}  # Defines the subnet for the local network
